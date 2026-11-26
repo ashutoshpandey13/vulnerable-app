@@ -17,6 +17,11 @@ spec:
         app: vulnerable-nginx
 
     spec:
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      automountServiceAccountToken: true
+
       containers:
       - name: nginx
         image: nginx:latest
@@ -24,6 +29,54 @@ spec:
         securityContext:
           privileged: true
           runAsUser: 0
+          allowPrivilegeEscalation: true
+          capabilities:
+            add:
+            - NET_ADMIN
+            - SYS_ADMIN
+
+        env:
+        - name: DB_PASSWORD
+          value: "admin123"
 
         ports:
         - containerPort: 80
+
+        volumeMounts:
+        - name: host-root
+          mountPath: /host
+
+      volumes:
+      - name: host-root
+        hostPath:
+          path: /
+---
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: vulnerable-nginx-svc
+
+spec:
+  type: LoadBalancer
+  selector:
+    app: vulnerable-nginx
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+
+metadata:
+  name: vulnerable-admin-binding
+
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: default
+
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io

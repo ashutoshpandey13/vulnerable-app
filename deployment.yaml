@@ -1,29 +1,64 @@
 apiVersion: apps/v1
 kind: Deployment
-
 metadata:
   name: vulnerable-nginx
-
+  namespace: nginx-app
 spec:
   replicas: 1
-
   selector:
     matchLabels:
       app: vulnerable-nginx
-
   template:
     metadata:
       labels:
         app: vulnerable-nginx
-
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: nginx
-        image: nginx:latest
-
+        image: registry.redhat.io/ubi9/nginx-126:1
         securityContext:
-          privileged: true
-          runAsUser: 0
-
+          privileged: false
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
         ports:
-        - containerPort: 80
+        - containerPort: 8080
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: nginx-run
+          mountPath: /run
+        - name: nginx-log
+          mountPath: /var/log/nginx
+        - name: nginx-cache
+          mountPath: /var/lib/nginx/tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: nginx-run
+        emptyDir: {}
+      - name: nginx-log
+        emptyDir: {}
+      - name: nginx-cache
+        emptyDir: {}

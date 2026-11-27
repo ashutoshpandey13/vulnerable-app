@@ -1,29 +1,52 @@
 apiVersion: apps/v1
 kind: Deployment
-
 metadata:
   name: vulnerable-nginx
-
+  namespace: nginx-app
 spec:
   replicas: 1
-
   selector:
     matchLabels:
       app: vulnerable-nginx
-
   template:
     metadata:
       labels:
         app: vulnerable-nginx
-
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: nginx
-        image: nginx:latest
-
+        image: nginxinc/nginx-unprivileged:1.29.3
         securityContext:
-          privileged: true
-          runAsUser: 0
-
+          privileged: false
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         ports:
-        - containerPort: 80
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
